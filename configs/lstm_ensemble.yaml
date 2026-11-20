@@ -1,0 +1,7 @@
+# Challenger (safe option): LSTM backbone with exactly the same wrapper, training and UQ methods as the TCN.
+# UQ methods produced: gaussian | mc_dropout | ensemble | conformal | ensemble_conformal
+model:
+  type: lstm
+  hidden: 64
+  layers: 2
+  dropout: 0.2

@@ -1,0 +1,9 @@
+# Main model: deep ensemble of mean-variance TCNs (training settings: configs/base.yaml -> train).
+# UQ methods produced: gaussian | mc_dropout | ensemble | conformal | ensemble_conformal
+model:
+  type: tcn
+  channels: [32, 32, 32, 32]   # 4 residual blocks, dilations 1-2-4-8 -> receptive field 61 cycles
+  kernel_size: 3
+  dropout: 0.2
+
+save_artifact: true            # used by serve/ (deployment)

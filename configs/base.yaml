@@ -1,0 +1,41 @@
+# Shared settings for every experiment. Experiment configs only override what differs.
+# Everything under `data` defines the benchmark for ALL models - change it only as a group decision
+# (or explicitly as an ablation via --set / a separate config).
+
+seeds: [0, 1, 2]
+
+data:
+  subsets: [FD001, FD002, FD003, FD004]
+  window: 30                # cycles per input window
+  rul_cap: 125              # piecewise-linear target: RUL capped at 125 cycles
+  cap_test: true            # cap the test target too (common in the literature); rmse_uncapped is reported as well
+  normalization: condition  # condition (per operating condition, needed for FD002/FD004) | global
+  scaler: zscore            # zscore | minmax
+  sensors: default          # default (14 informative sensors) | all (21) | explicit list
+  condition_features: true  # one-hot operating condition as extra input (FD002/FD004 only)
+  val_frac: 0.15            # share of training engines for early stopping
+  cal_frac: 0.15            # share of training engines for conformal calibration
+
+train:                      # deep models only
+  lr: 0.001
+  batch_size: 256
+  epochs: 100
+  patience: 10              # early stopping on the validation engines
+  beta: 0.5                 # beta-NLL (Seitzer et al., 2022); 0 = plain Gaussian NLL
+  monitor: nll              # early-stopping criterion: nll | rmse
+
+uq:
+  levels: [0.5, 0.8, 0.9, 0.95]   # nominal coverage of the prediction intervals
+  ensemble_size: 5
+  mc_samples: 50
+
+decision:                   # snapshot maintenance policy, see src/decision.py
+  horizon: 20               # cycles until the next maintenance opportunity
+  c_pm: 1.0                 # planned maintenance
+  c_fail: 10.0              # unplanned failure
+  c_waste: 0.01             # per cycle of remaining life thrown away
+
+# columns of results/<name>/summary.md
+report: [rmse, nasa, cov90, width90, winkler90, cal_err, cost_point, cost_lo90]
+
+save_artifact: false        # save the first seed's ensemble to artifacts/<name>/<subset>/ for serving

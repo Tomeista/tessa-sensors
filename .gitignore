@@ -221,3 +221,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project: raw data, experiment outputs and trained models are reproducible, not versioned
+data/raw/
+results/
+artifacts/

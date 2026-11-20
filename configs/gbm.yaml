@@ -1,0 +1,8 @@
+# Baseline: LightGBM on window statistics (last, mean, std, min, max, slope per sensor).
+# UQ methods produced: quantile | cqr | conformal
+model:
+  type: gbm
+  n_estimators: 1000        # upper bound, early stopping on the validation engines
+  learning_rate: 0.05
+  num_leaves: 31
+  min_child_samples: 50

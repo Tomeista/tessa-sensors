@@ -1,0 +1,36 @@
+[project]
+name = "ie-rul"
+version = "0.1.0"
+description = "Uncertainty-aware remaining-useful-life (RUL) prediction on NASA C-MAPSS"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "joblib>=1.4",
+    "lightgbm>=4.7",
+    "matplotlib>=3.9",
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+    "scikit-learn>=1.5",
+    "scipy>=1.14",
+    "torch>=2.5",
+    "uvicorn>=0.32",
+]
+
+[dependency-groups]
+dev = ["ipykernel>=6.29", "pytest>=8.3"]
+
+# CPU-only PyTorch is enough for C-MAPSS and keeps the install small.
+# macOS gets the regular PyPI wheel (which is CPU/MPS anyway).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
