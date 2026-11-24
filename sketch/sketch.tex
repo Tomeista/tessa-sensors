@@ -1,0 +1,118 @@
+
+\documentclass[10pt,twocolumn,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1.6cm,columnsep=0.6cm]{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+% ---- compact layout -------------------------------------------------
+\titleformat{\section}{\normalsize\bfseries}{\thesection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.8ex plus 0.3ex}{0.4ex}
+\setlist{nosep,leftmargin=*}
+\setlength{\parskip}{0pt}
+\pagestyle{empty}
+
+% ---- placeholder macro (gray italic so leftovers are easy to spot) ---
+\newcommand{\ph}[1]{\textcolor{gray}{\textit{[#1]}}}
+
+% ---- compact bibliography -------------------------------------------
+\renewcommand{\bibsection}{\section*{References}}
+\setlength{\bibsep}{0pt}
+\renewcommand{\bibfont}{\footnotesize}
+\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:\,#1}}
+
+% ---- title block ----------------------------------------------------
+\makeatletter
+\newcommand{\@affiliation}{}
+\newcommand{\affiliation}[1]{\renewcommand{\@affiliation}{#1}}
+\renewcommand{\maketitle}{%
+  \twocolumn[{%
+    \begin{center}
+      {\Large\bfseries \@title\par}\vspace{0.4ex}
+      {\normalsize \@author\par}\vspace{0.2ex}
+      {\small \@affiliation\par}\vspace{0.2ex}
+      {\small \@date\par}
+    \end{center}\vspace{0.6ex}
+  }]}
+\makeatother
+
+\title{Uncertainty-aware RUL prediction for predictive maintenance: Sketch of Idea}
+\author{Tobias Dietze, Tobias Meier, Daria Samsonova, Srisharanya Vobblisetty}
+\affiliation{DHBW Mannheim / Intelligence Engineering}
+\date{30.11.2026}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Project Scope}
+% Q: Is the project scope clearly defined?
+To support a maintence decision an interval of remaining useful life (RUL) is easier to act on than a point estiamte.
+This work will evaluate \textbf{(RQ1)}which uncertainty method gives the most reliable RUL intervals, and \textbf{(RQ2)} if calibrated intervals
+do lead to better maintenance decisions than point predictions?
+
+\ph{Concrete, measurable objective, e.g.\ ``classify X from sensor Y with $\geq$ Z\% macro-F1''.}
+
+\ph{what we will and will not deliver.}
+
+% =====================================================================
+\section{Related Work}
+Data driven RUL prediction is commonly benchmarked on the C-MAPSS dataset, which is made up of sensor readings from a simulated
+turbofan~\cite{4711414}. Standard on this task are deep models which operate on sliding windows, such as CNNs~\cite{LI20181}.
+However, these models produce point estimates. Basora et al. \cite{BASORA2025110513} benchmark different uncertainty quantification methods for deep prognostics,
+including deep ensembles and MC dropout. Conformal prediction has been used to wrap RUL predictors in intervals with coverage guarantees \cite{javanmardi2023conformal,robinson2026riskaware}.
+Mitici et al. \cite{MITICI2023109199} use probabilistic RUL prognostics for maintenance planning. To the knowledge of the authors, how the choice of uncertainty method affects the resulting maintenance
+decisions has not been studied.
+
+% =====================================================================
+\section{Approach}
+% Q: Is the choice of approach well founded?
+\textbf{Method.} \ph{Model / algorithm and pipeline in brief (inputs $\rightarrow$ processing $\rightarrow$ outputs).}
+
+\noindent\textbf{Rationale.} \ph{Why this approach fits the problem, data, and constraints (e.g.\ latency, memory, data size).}
+
+\noindent\textbf{Alternatives considered.} \ph{Other options and why they were rejected.}
+
+% =====================================================================
+\section{Training \& Evaluation}
+% Q: Are training and evaluation of the approach rigorous?
+\begin{itemize}
+  \item \textbf{Data:} \ph{source, size, labels, known biases / class imbalance.}
+  \item \textbf{Splits:} \ph{train/val/test protocol; how leakage is prevented (e.g.\ split by subject/session/device).}
+  \item \textbf{Training:} \ph{loss, optimiser, hyperparameter search, compute budget.}
+  \item \textbf{Metrics:} \ph{primary and secondary metrics, and why they fit.}
+  \item \textbf{Baselines:} \ph{trivial baseline plus at least one strong baseline.}
+  \item \textbf{Rigor:} \ph{multiple seeds, confidence intervals / significance tests, ablations.}
+\end{itemize}
+
+% =====================================================================
+\section{Reproducibility \& Deployment}
+% Q: How are reproducibility and deployment handled?
+\begin{itemize}
+  \item \textbf{Code \& data:} \ph{repository URL, licence, data availability / access.}
+  \item \textbf{Environment:} \ph{pinned dependencies (lock file), container, hardware used.}
+  \item \textbf{Determinism:} \ph{fixed seeds, versioned configs, experiment tracking.}
+  \item \textbf{Deployment:} \ph{target platform (e.g.\ edge device, server), runtime constraints, how the model is shipped and monitored.}
+\end{itemize}
+
+% =====================================================================
+\section{AI Usage Statement}
+% Q: Is an AI usage statement included?
+\ph{State which AI tools were used (name and version), for what (e.g.\ code generation, writing, literature search), and how outputs were checked. If none were used, say so explicitly.}
+
+% =====================================================================
+{\small
+  \bibliographystyle{abbrvnat}
+  \bibliography{refs}
+}
+
+\end{document}
