@@ -13,6 +13,13 @@
 \usepackage{titlesec}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usepackage{xurl}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+\usepackage{caption}
+\captionsetup{font=footnotesize,labelfont=bf,skip=2pt}
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{4pt plus 2pt minus 2pt}
 
 % ---- compact layout -------------------------------------------------
 \titleformat{\section}{\normalsize\bfseries}{\thesection}{0.5em}{}
@@ -54,19 +61,17 @@
 \maketitle
 
 % =====================================================================
-\section{Project Scope}
+\section{Introduction \& Project Scope}
 % Q: Is the project scope clearly defined?
-To support a maintence decision an interval of remaining useful life (RUL) is easier to act on than a point estiamte.
-This work will evaluate \textbf{(RQ1)}which uncertainty method gives the most reliable RUL intervals, and \textbf{(RQ2)} if calibrated intervals
-do lead to better maintenance decisions than point predictions?
-
-\ph{Concrete, measurable objective, e.g.\ ``classify X from sensor Y with $\geq$ Z\% macro-F1''.}
-
-\ph{what we will and will not deliver.}
-
+To support a maintenance decision an interval of remaining useful life (RUL) is easier to act on than a point estimate.
+This work will evaluate which uncertainty method gives the most reliable RUL intervals, and if calibrated intervals
+do lead to better maintenance decisions than point predictions.
+We aim to create a TCN-based RUL model which outperforms methods from the literature such as gradient boosting and LSTM on this particular dataset,
+compare different methods of modeling uncertainty and evaluate their effect on maintenance decisions.
+Out of scope are other machine parts than turbines. The first implementation will not use data from real sensors.
 % =====================================================================
 \section{Related Work}
-Data driven RUL prediction is commonly benchmarked on the C-MAPSS dataset, which is made up of sensor readings from a simulated
+Data-driven RUL prediction is commonly benchmarked on the C-MAPSS dataset, which is made up of sensor readings from a simulated
 turbofan~\cite{4711414}. Standard on this task are deep models which operate on sliding windows, such as CNNs~\cite{LI20181}.
 However, these models produce point estimates. Basora et al. \cite{BASORA2025110513} benchmark different uncertainty quantification methods for deep prognostics,
 including deep ensembles and MC dropout. Conformal prediction has been used to wrap RUL predictors in intervals with coverage guarantees \cite{javanmardi2023conformal,robinson2026riskaware}.
@@ -76,11 +81,63 @@ decisions has not been studied.
 % =====================================================================
 \section{Approach}
 % Q: Is the choice of approach well founded?
-\textbf{Method.} \ph{Model / algorithm and pipeline in brief (inputs $\rightarrow$ processing $\rightarrow$ outputs).}
+\begin{figure}[!htb]
+  \centering\hyphenpenalty=10000
+  \newcommand{\role}[1]{\hfill{\tiny\itshape #1}}
+  \newcommand{\sub}[1]{\hspace*{4.5pt}{\itshape #1}}
+  \newcommand{\bfont}{\fontsize{6.5}{7.6}\selectfont}
+  \begin{tikzpicture}[
+    font=\bfont, node distance=0pt,
+    head/.style={draw=#1!70!black, fill=#1!25, text width=1.85cm, align=center,
+        inner sep=1.5pt, text height=1.6ex, text depth=0.35ex, font=\scriptsize\bfseries},
+    body/.style={draw=#1!70!black, fill=#1!6, text width=1.85cm, align=left,
+        inner sep=1.5pt, minimum height=1.48cm, anchor=north},
+    eval/.style={draw=gray!70, dashed, fill=gray!8, text width=1.85cm, align=center,
+        inner sep=1.5pt, minimum height=0.95cm, anchor=north},
+    flow/.style={-{Stealth[length=3pt]}, thick, gray!60!black},
+    ]
+    % ---- stage headers --------------------------------------------------
+    \node[head=blue]                         (h1) {Data};
+    \node[head=teal,   right=0.2cm of h1]    (h2) {Models};
+    \node[head=orange, right=0.2cm of h2]    (h3) {Uncertainty};
+    \node[head=red,    right=0.2cm of h3]    (h4) {Decision};
+    % ---- stage bodies (equal height so arrows stay straight) ------------
+    \node[body=blue]   (b1) at (h1.south) {C-MAPSS\\ FD001--004\\
+      $\cdot$ normalisation\\ $\cdot$ windowing\\ $\cdot$ RUL cap 125};
+    \node[body=teal]   (b2) at (h2.south) {$\cdot$ LightGBM\role{base}\\
+      $\cdot$ \textbf{TCN}\role{main}\\ \sub{head: $\mu,\sigma^2$}\\
+      $\cdot$ LSTM\,/\,TSFM\\ \mbox{}\role{challenger}};
+    \node[body=orange] (b3) at (h3.south) {$\cdot$ deep ensemble\\ \sub{5--10 seeds}\\
+      $\cdot$ MC dropout\\ $\cdot$ conformal\\ \sub{calibration set}};
+    \node[body=red]    (b4) at (h4.south) {RUL $+$ 90\,\%\\ interval\\[1pt]
+      maintain if\\ lower bd.\ $<\tau$\\[1pt]
+      \mbox{$c_\mathrm{late}\gg c_\mathrm{early}$}};
+    \foreach \a/\b in {b1/b2, b2/b3, b3/b4}
+    \draw[flow] (\a.east) -- (\b.west);
+    % ---- evaluation strip ----------------------------------------------
+    \node[eval] (e1) at ([yshift=-4pt]b1.south) {same splits,\\ 5 seeds,\\ mean$\pm$std};
+    \node[eval] (e2) at ([yshift=-4pt]b2.south) {\textbf{O1}\\ RMSE,\\ NASA score};
+    \node[eval] (e3) at ([yshift=-4pt]b3.south) {\textbf{O2}\\ coverage, width,\\ calibration};
+    \node[eval] (e4) at ([yshift=-4pt]b4.south) {\textbf{O3}\\ cost vs.\\ point estimate};
+    \foreach \i in {1,...,4}
+    \draw[gray!60, densely dotted] (b\i.south) -- (e\i.north);
+  \end{tikzpicture}
+  \caption{Pipeline (top) and per-stage evaluation (dashed).}
+  \label{fig:method}
+\end{figure}
+Fig.~\ref{fig:method} shows the pipeline. Preprocessing
+is shared code, so differences between models come from the model alone. Ensemble
+members are trained using Gaussian negative log-likelihood~\cite{lakshminarayanan2017};
+MC dropout keeps dropout active at test time in a single TCN; split conformal
+prediction creates intervals around any point
+predictor from residuals on held-out engines. The policy is compared with one acting on the point estimate.
 
-\noindent\textbf{Rationale.} \ph{Why this approach fits the problem, data, and constraints (e.g.\ latency, memory, data size).}
-
-\noindent\textbf{Alternatives considered.} \ph{Other options and why they were rejected.}
+TCNs capture long temporal context through dilated
+convolutions, train in parallel and compete with recurrent
+models~\cite{bai2018}, so ensembles over four subsets and several seeds stay cheap.
+The UQ methods cover several models (deep ensemble), one stochastic
+model (MC dropout) and model-agnostic calibration with a coverage guarantee
+(conformal~\cite{javanmardi2023conformal}).
 
 % =====================================================================
 \section{Training \& Evaluation}
@@ -96,23 +153,17 @@ decisions has not been studied.
 
 % =====================================================================
 \section{Reproducibility \& Deployment}
-% Q: How are reproducibility and deployment handled?
-\begin{itemize}
-  \item \textbf{Code \& data:} \ph{repository URL, licence, data availability / access.}
-  \item \textbf{Environment:} \ph{pinned dependencies (lock file), container, hardware used.}
-  \item \textbf{Determinism:} \ph{fixed seeds, versioned configs, experiment tracking.}
-  \item \textbf{Deployment:} \ph{target platform (e.g.\ edge device, server), runtime constraints, how the model is shipped and monitored.}
-\end{itemize}
+All code is maintained at \url{https://github.com/Tomeista/tessa-sensors.git} with pinned dependencies and seeds. All datasets used
+are public. Deployment is done through Docker and FastAPI.
 
 % =====================================================================
 \section{AI Usage Statement}
 % Q: Is an AI usage statement included?
-\ph{State which AI tools were used (name and version), for what (e.g.\ code generation, writing, literature search), and how outputs were checked. If none were used, say so explicitly.}
-
-% =====================================================================
-{\small
-  \bibliographystyle{abbrvnat}
-  \bibliography{refs}
-}
+AI was used to create a tikz graphic from text provided by one of the authors. AI was used as part of the review process before submission. Model: Claude Opus 5.5
+  % =====================================================================
+  {\small
+    \bibliographystyle{compact}
+    \bibliography{refs}
+  }
 
 \end{document}
