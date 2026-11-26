@@ -1,0 +1,180 @@
+
+\documentclass[10pt,twocolumn,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1.6cm,columnsep=0.6cm]{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usepackage{xurl}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+\usepackage{caption}
+\captionsetup{font=footnotesize,labelfont=bf,skip=2pt}
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{4pt plus 2pt minus 2pt}
+
+% ---- compact layout -------------------------------------------------
+\titleformat{\section}{\normalsize\bfseries}{\thesection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.8ex plus 0.3ex}{0.4ex}
+\setlist{nosep,leftmargin=*}
+\setlength{\parskip}{0pt}
+\pagestyle{empty}
+
+% ---- placeholder macro (gray italic so leftovers are easy to spot) ---
+\newcommand{\ph}[1]{\textcolor{gray}{\textit{[#1]}}}
+
+% ---- compact bibliography -------------------------------------------
+\renewcommand{\bibsection}{\section*{References}}
+\setlength{\bibsep}{0pt}
+\renewcommand{\bibfont}{\footnotesize}
+\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:\,#1}}
+
+% ---- title block ----------------------------------------------------
+\makeatletter
+\newcommand{\@affiliation}{}
+\newcommand{\affiliation}[1]{\renewcommand{\@affiliation}{#1}}
+\renewcommand{\maketitle}{%
+  \twocolumn[{%
+    \begin{center}
+      {\Large\bfseries \@title\par}\vspace{0.4ex}
+      {\normalsize \@author\par}\vspace{0.2ex}
+      {\small \@affiliation\par}\vspace{0.2ex}
+      {\small \@date\par}
+    \end{center}\vspace{0.6ex}
+  }]}
+\makeatother
+
+\title{Uncertainty-Aware RUL Prediction for Predictive Maintenance}
+\author{Tobias Dietze, Tobias Meier, Daria Samsonova, Srisharanya Vobblisetty}
+\affiliation{DHBW Mannheim / Intelligence Engineering}
+\date{Sketch of Idea, 30.11.2026}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Introduction \& Project Scope}
+% Q: Is the project scope clearly defined?
+For maintenance decisions, an interval for the remaining useful life (RUL) is easier to act on
+than a point estimate. We ask which uncertainty quantification (UQ) method gives the most reliable
+RUL intervals, and whether calibrated intervals lead to better maintenance decisions than point predictions.
+Objectives: \textbf{(O1)} a temporal convolutional network (TCN) for RUL, tested against gradient-boosting
+and LSTM or time-series foundation model (TSFM) baselines; \textbf{(O2)} a comparison of three UQ methods;
+\textbf{(O3)} their effect on maintenance cost. We only use the simulated NASA C-MAPSS turbofan data;
+real sensor data and other machine types are out of scope.
+% =====================================================================
+\section{Related Work}
+Data-driven RUL prediction is commonly benchmarked on C-MAPSS, simulated run-to-failure data of
+turbofan engines~\cite{4711414}. Deep models on sliding windows, such as CNNs~\cite{LI20181}, are
+standard for this task but only produce point estimates. Basora et al.~\cite{BASORA2025110513}
+benchmark UQ methods for deep prognostics, including deep ensembles and Monte Carlo (MC) dropout.
+Conformal prediction has been used to wrap RUL predictors in intervals with coverage
+guarantees~\cite{javanmardi2023conformal,robinson2026riskaware}, and Mitici et al.~\cite{MITICI2023109199}
+use probabilistic RUL prognostics for maintenance planning. To our knowledge, the effect of the
+UQ method on the resulting maintenance decisions has not been studied.
+
+% =====================================================================
+\section{Approach}
+\begin{figure}[!htb]
+  \centering\hyphenpenalty=10000
+  \newcommand{\role}[1]{\hfill{\tiny\itshape #1}}
+  \newcommand{\sub}[1]{\hspace*{4.5pt}{\itshape #1}}
+  \newcommand{\bfont}{\fontsize{6.5}{7.6}\selectfont}
+  \begin{tikzpicture}[
+    font=\bfont, node distance=0pt,
+    head/.style={draw=#1!70!black, fill=#1!25, text width=1.85cm, align=center,
+        inner sep=1.5pt, text height=1.6ex, text depth=0.35ex, font=\scriptsize\bfseries},
+    body/.style={draw=#1!70!black, fill=#1!6, text width=1.85cm, align=left,
+        inner sep=1.5pt, minimum height=1.48cm, anchor=north},
+    eval/.style={draw=gray!70, dashed, fill=gray!8, text width=1.85cm, align=center,
+        inner sep=1.5pt, minimum height=0.95cm, anchor=north},
+    flow/.style={-{Stealth[length=3pt]}, thick, gray!60!black},
+    ]
+    % ---- stage headers --------------------------------------------------
+    \node[head=blue]                         (h1) {Data};
+    \node[head=teal,   right=0.2cm of h1]    (h2) {Models};
+    \node[head=orange, right=0.2cm of h2]    (h3) {Uncertainty};
+    \node[head=red,    right=0.2cm of h3]    (h4) {Decision};
+    % ---- stage bodies (equal height so arrows stay straight) ------------
+    \node[body=blue]   (b1) at (h1.south) {C-MAPSS\\ FD001--004\\
+      $\cdot$ normalisation\\ $\cdot$ windowing\\ $\cdot$ RUL cap 125};
+    \node[body=teal]   (b2) at (h2.south) {$\cdot$ LightGBM\role{base}\\
+      $\cdot$ \textbf{TCN}\role{main}\\ \sub{head: $\mu,\sigma^2$}\\
+      $\cdot$ LSTM\,/\,TSFM\\ \mbox{}\role{challenger}};
+    \node[body=orange] (b3) at (h3.south) {$\cdot$ deep ensemble\\ \sub{5--10 seeds}\\
+      $\cdot$ MC dropout\\ $\cdot$ conformal\\ \sub{calibration set}};
+    \node[body=red]    (b4) at (h4.south) {RUL $+$ 90\,\%\\ interval\\[1pt]
+      maintain if\\ lower bd.\ $<\tau$\\[1pt]
+      \mbox{$c_\mathrm{late}\gg c_\mathrm{early}$}};
+    \foreach \a/\b in {b1/b2, b2/b3, b3/b4}
+    \draw[flow] (\a.east) -- (\b.west);
+    % ---- evaluation strip ----------------------------------------------
+    \node[eval] (e1) at ([yshift=-4pt]b1.south) {same splits,\\ 5 seeds,\\ mean$\pm$std};
+    \node[eval] (e2) at ([yshift=-4pt]b2.south) {\textbf{O1}\\ RMSE,\\ NASA score};
+    \node[eval] (e3) at ([yshift=-4pt]b3.south) {\textbf{O2}\\ coverage, width,\\ calibration};
+    \node[eval] (e4) at ([yshift=-4pt]b4.south) {\textbf{O3}\\ cost vs.\\ point estimate};
+    \foreach \i in {1,...,4}
+    \draw[gray!60, densely dotted] (b\i.south) -- (e\i.north);
+  \end{tikzpicture}
+  \caption{Pipeline (top) and per-stage evaluation (dashed).}
+  \label{fig:method}
+\end{figure}
+All models share the same preprocessing code (Fig.~\ref{fig:method}), so differences
+between them come from the model alone. The TCN predicts mean and variance and is
+trained with a Gaussian negative log-likelihood (NLL)~\cite{lakshminarayanan2017}; a deep ensemble
+combines several TCNs; MC dropout keeps dropout active at test time in a single TCN; split
+conformal prediction wraps any point predictor using residuals on held-out engines.
+Maintenance is triggered once the lower bound of the 90\,\% interval falls below a threshold~$\tau$.
+As failures cost far more than early maintenance, this policy is compared with one acting on the
+point estimate.
+
+TCNs capture long temporal context through dilated convolutions and are competitive with
+recurrent models~\cite{bai2018}; as they train in parallel, ensembles over four subsets and
+several seeds stay cheap. The UQ methods span several models (deep ensemble), one stochastic
+model (MC dropout) and model-agnostic calibration with a coverage guarantee
+(conformal~\cite{javanmardi2023conformal}).
+
+% =====================================================================
+\section{Training \& Evaluation}
+We follow the standard protocol and official train/test split; validation and calibration engines are split off
+the training set by engine, not by window, to avoid leakage. Constant sensors are dropped and
+data is normalised per operating condition (training statistics only). Inputs are 30-cycle sliding
+windows; the RUL target is capped at 125 cycles~\cite{LI20181}. LightGBM uses quantile loss; the TCN
+uses Gaussian NLL, Adam and early stopping on validation loss. Deep ensembles combine 5--10 TCNs; MC dropout uses 100 forward passes; conformal intervals use the
+calibration engines. Hyperparameters are tuned on FD001 with a fixed budget and frozen for the other
+subsets. We report RMSE and NASA score~\cite{4711414} on the last test window per engine; coverage,
+interval width and a calibration curve over all test cycles; and maintenance cost of the
+simulated threshold policy. Results: mean\,$\pm$\,std over five seeds, with engine-level bootstrap
+confidence intervals.
+% =====================================================================
+\section{Reproducibility \& Deployment}
+Code: \url{https://github.com/Tomeista/tessa-sensors} (pinned dependencies, fixed seeds);
+the public C-MAPSS data is fetched by a script. The best model is served via FastAPI in Docker
+(window in, RUL and interval out).
+
+% =====================================================================
+\section{Work Plan}
+Work is split by workstream (data, models, UQ, evaluation \& decision, reproducibility).
+Milestones: shared code and baseline by mid-Dec; all models, UQ, decision policy and
+deployment by 10~Jan; peer review addressed by 5~Feb.
+
+% =====================================================================
+\section{AI Usage Statement}
+Claude (Anthropic) was used to draw the TikZ figure from our description and to proofread
+this sketch (Claude Opus 5.5). We checked all content
+and are responsible for it.
+  % =====================================================================
+  {\small
+    \bibliographystyle{compact}
+    \bibliography{refs}
+  }
+
+\end{document}
