@@ -52,10 +52,10 @@
   }]}
 \makeatother
 
-\title{Uncertainty-aware RUL prediction for predictive maintenance: Sketch of Idea}
+\title{Uncertainty-Aware RUL Prediction for Predictive Maintenance}
 \author{Tobias Dietze, Tobias Meier, Daria Samsonova, Srisharanya Vobblisetty}
 \affiliation{DHBW Mannheim / Intelligence Engineering}
-\date{30.11.2026}
+\date{Sketch of Idea, 30.11.2026}
 
 \begin{document}
 \maketitle
@@ -63,24 +63,26 @@
 % =====================================================================
 \section{Introduction \& Project Scope}
 % Q: Is the project scope clearly defined?
-To support a maintenance decision an interval of remaining useful life (RUL) is easier to act on than a point estimate.
-This work will evaluate which uncertainty method gives the most reliable RUL intervals, and if calibrated intervals
-do lead to better maintenance decisions than point predictions.
-We aim to create a TCN-based RUL model which outperforms methods from the literature such as gradient boosting and LSTM on this particular dataset,
-compare different methods of modeling uncertainty and evaluate their effect on maintenance decisions.
-Out of scope are other machine parts than turbines. The first implementation will not use data from real sensors.
+For maintenance decisions, an interval for the remaining useful life (RUL) is easier to act on
+than a point estimate. We ask which uncertainty quantification (UQ) method gives the most reliable
+RUL intervals, and whether calibrated intervals lead to better maintenance decisions than point predictions.
+Objectives: \textbf{(O1)} a temporal convolutional network (TCN) for RUL, tested against gradient-boosting
+and LSTM or time-series foundation model (TSFM) baselines; \textbf{(O2)} a comparison of three UQ methods;
+\textbf{(O3)} their effect on maintenance cost. We only use the simulated NASA C-MAPSS turbofan data;
+real sensor data and other machine types are out of scope.
 % =====================================================================
 \section{Related Work}
-Data-driven RUL prediction is commonly benchmarked on the C-MAPSS dataset, which is made up of sensor readings from a simulated
-turbofan~\cite{4711414}. Standard on this task are deep models which operate on sliding windows, such as CNNs~\cite{LI20181}.
-However, these models produce point estimates. Basora et al. \cite{BASORA2025110513} benchmark different uncertainty quantification methods for deep prognostics,
-including deep ensembles and MC dropout. Conformal prediction has been used to wrap RUL predictors in intervals with coverage guarantees \cite{javanmardi2023conformal,robinson2026riskaware}.
-Mitici et al. \cite{MITICI2023109199} use probabilistic RUL prognostics for maintenance planning. To the knowledge of the authors, how the choice of uncertainty method affects the resulting maintenance
-decisions has not been studied.
+Data-driven RUL prediction is commonly benchmarked on C-MAPSS, simulated run-to-failure data of
+turbofan engines~\cite{4711414}. Deep models on sliding windows, such as CNNs~\cite{LI20181}, are
+standard for this task but only produce point estimates. Basora et al.~\cite{BASORA2025110513}
+benchmark UQ methods for deep prognostics, including deep ensembles and Monte Carlo (MC) dropout.
+Conformal prediction has been used to wrap RUL predictors in intervals with coverage
+guarantees~\cite{javanmardi2023conformal,robinson2026riskaware}, and Mitici et al.~\cite{MITICI2023109199}
+use probabilistic RUL prognostics for maintenance planning. To our knowledge, the effect of the
+UQ method on the resulting maintenance decisions has not been studied.
 
 % =====================================================================
 \section{Approach}
-% Q: Is the choice of approach well founded?
 \begin{figure}[!htb]
   \centering\hyphenpenalty=10000
   \newcommand{\role}[1]{\hfill{\tiny\itshape #1}}
@@ -125,41 +127,50 @@ decisions has not been studied.
   \caption{Pipeline (top) and per-stage evaluation (dashed).}
   \label{fig:method}
 \end{figure}
-Fig.~\ref{fig:method} shows the pipeline. Preprocessing
-is shared code, so differences between models come from the model alone. Ensemble
-members are trained using Gaussian negative log-likelihood~\cite{lakshminarayanan2017};
-MC dropout keeps dropout active at test time in a single TCN; split conformal
-prediction creates intervals around any point
-predictor from residuals on held-out engines. The policy is compared with one acting on the point estimate.
+All models share the same preprocessing code (Fig.~\ref{fig:method}), so differences
+between them come from the model alone. The TCN predicts mean and variance and is
+trained with a Gaussian negative log-likelihood (NLL)~\cite{lakshminarayanan2017}; a deep ensemble
+combines several TCNs; MC dropout keeps dropout active at test time in a single TCN; split
+conformal prediction wraps any point predictor using residuals on held-out engines.
+Maintenance is triggered once the lower bound of the 90\,\% interval falls below a threshold~$\tau$.
+As failures cost far more than early maintenance, this policy is compared with one acting on the
+point estimate.
 
-TCNs capture long temporal context through dilated
-convolutions, train in parallel and compete with recurrent
-models~\cite{bai2018}, so ensembles over four subsets and several seeds stay cheap.
-The UQ methods cover several models (deep ensemble), one stochastic
+TCNs capture long temporal context through dilated convolutions and are competitive with
+recurrent models~\cite{bai2018}; as they train in parallel, ensembles over four subsets and
+several seeds stay cheap. The UQ methods span several models (deep ensemble), one stochastic
 model (MC dropout) and model-agnostic calibration with a coverage guarantee
 (conformal~\cite{javanmardi2023conformal}).
 
 % =====================================================================
 \section{Training \& Evaluation}
-% Q: Are training and evaluation of the approach rigorous?
-\begin{itemize}
-  \item \textbf{Data:} \ph{source, size, labels, known biases / class imbalance.}
-  \item \textbf{Splits:} \ph{train/val/test protocol; how leakage is prevented (e.g.\ split by subject/session/device).}
-  \item \textbf{Training:} \ph{loss, optimiser, hyperparameter search, compute budget.}
-  \item \textbf{Metrics:} \ph{primary and secondary metrics, and why they fit.}
-  \item \textbf{Baselines:} \ph{trivial baseline plus at least one strong baseline.}
-  \item \textbf{Rigor:} \ph{multiple seeds, confidence intervals / significance tests, ablations.}
-\end{itemize}
-
+We follow the standard protocol and official train/test split; validation and calibration engines are split off
+the training set by engine, not by window, to avoid leakage. Constant sensors are dropped and
+data is normalised per operating condition (training statistics only). Inputs are 30-cycle sliding
+windows; the RUL target is capped at 125 cycles~\cite{LI20181}. LightGBM uses quantile loss; the TCN
+uses Gaussian NLL, Adam and early stopping on validation loss. Deep ensembles combine 5--10 TCNs; MC dropout uses 100 forward passes; conformal intervals use the
+calibration engines. Hyperparameters are tuned on FD001 with a fixed budget and frozen for the other
+subsets. We report RMSE and NASA score~\cite{4711414} on the last test window per engine; coverage,
+interval width and a calibration curve over all test cycles; and maintenance cost of the
+simulated threshold policy. Results: mean\,$\pm$\,std over five seeds, with engine-level bootstrap
+confidence intervals.
 % =====================================================================
 \section{Reproducibility \& Deployment}
-All code is maintained at \url{https://github.com/Tomeista/tessa-sensors.git} with pinned dependencies and seeds. All datasets used
-are public. Deployment is done through Docker and FastAPI.
+Code: \url{https://github.com/Tomeista/tessa-sensors} (pinned dependencies, fixed seeds);
+the public C-MAPSS data is fetched by a script. The best model is served via FastAPI in Docker
+(window in, RUL and interval out).
+
+% =====================================================================
+\section{Work Plan}
+Work is split by workstream (data, models, UQ, evaluation \& decision, reproducibility).
+Milestones: shared code and baseline by mid-Dec; all models, UQ, decision policy and
+deployment by 10~Jan; peer review addressed by 5~Feb.
 
 % =====================================================================
 \section{AI Usage Statement}
-% Q: Is an AI usage statement included?
-AI was used to create a tikz graphic from text provided by one of the authors. AI was used as part of the review process before submission. Model: Claude Opus 5.5
+Claude (Anthropic) was used to draw the TikZ figure from our description and to proofread
+this sketch (Claude Opus 5.5). We checked all content
+and are responsible for it.
   % =====================================================================
   {\small
     \bibliographystyle{compact}
